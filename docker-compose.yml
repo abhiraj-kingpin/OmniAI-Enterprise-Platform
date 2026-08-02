@@ -1,0 +1,78 @@
+# Full local stack: backend, frontend, and the distributed-infra pieces the
+# Distributed AI Infrastructure module talks to (Redis for Celery, Kafka for
+# streaming ingestion, an MLflow UI for the tracking DB the backend already
+# writes to). `docker compose up` on a host with Docker gives you all of it;
+# this sandbox doesn't have Docker installed, so this file is written
+# correctly but not run — see backend/app/modules/distributed/router.py's
+# /components endpoint for what's live vs. not on this specific host.
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - CORS_ORIGINS=["http://localhost:3000"]
+      - REDIS_URL=redis://redis:6379/0
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend/data:/app/data
+    depends_on:
+      - redis
+
+  celery-worker:
+    build: ./backend
+    command: celery -A app.modules.distributed.celery_app worker --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend/data:/app/data
+    depends_on:
+      - redis
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASE=http://localhost:8000
+    depends_on:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  mlflow-ui:
+    build: ./backend
+    command: mlflow ui --backend-store-uri sqlite:///data/mlops/mlflow.db --host 0.0.0.0 --port 5000
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend/data:/app/data
+
+volumes:
+  redis-data:

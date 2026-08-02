@@ -1,0 +1,41 @@
+# DVC pipeline example — data/model versioning for the Recommendation
+# System module. Requires `dvc init` (needs this to be a git repo first)
+# and a configured remote (`dvc remote add -d storage s3://...` or a local
+# path) to actually run `dvc repro` / `dvc push`. Included as a correct
+# pipeline definition, not something this environment can execute — DVC's
+# whole point is versioning artifacts *alongside* git history, which this
+# scaffold intentionally hasn't initialized (see the "don't push to GitHub"
+# note in the project brief).
+stages:
+  prepare_interactions:
+    cmd: python scripts/dvc/prepare_interactions.py
+    deps:
+      - scripts/dvc/prepare_interactions.py
+      - data/recommendations/raw
+    outs:
+      - data/recommendations/prepared/interactions.csv
+
+  train_mf_model:
+    cmd: python scripts/dvc/train_mf_model.py
+    deps:
+      - scripts/dvc/train_mf_model.py
+      - data/recommendations/prepared/interactions.csv
+      - backend/app/modules/recommendations/mf.py
+    params:
+      - train.factors
+      - train.epochs
+      - train.learning_rate
+    outs:
+      - data/recommendations/models/mf_model.pkl
+    metrics:
+      - data/recommendations/models/metrics.json:
+          cache: false
+
+  evaluate:
+    cmd: python scripts/dvc/evaluate.py
+    deps:
+      - scripts/dvc/evaluate.py
+      - data/recommendations/models/mf_model.pkl
+    metrics:
+      - data/recommendations/models/eval.json:
+          cache: false

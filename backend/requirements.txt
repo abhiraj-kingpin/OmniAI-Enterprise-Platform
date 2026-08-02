@@ -1,0 +1,105 @@
+fastapi>=0.115
+uvicorn[standard]>=0.32
+anthropic>=0.40
+openai>=1.54
+pydantic>=2.9
+pydantic-settings>=2.6
+python-dotenv>=1.0
+
+# Security module
+pyjwt>=2.9
+bcrypt>=4.2
+python-multipart>=0.0.12
+
+# Enterprise RAG module
+pypdf>=5.0
+python-docx>=1.1
+python-pptx>=1.0
+openpyxl>=3.1
+Pillow>=10.4
+beautifulsoup4>=4.12
+requests>=2.32
+# ONNX Runtime-based, not PyTorch — see app/modules/rag/models.py for why.
+fastembed>=0.4
+rank-bm25>=0.2
+networkx>=3.4
+
+# AI Data Analyst module
+pandas>=2.2
+duckdb>=1.1
+matplotlib>=3.9
+openpyxl>=3.1
+
+# AI Research Assistant module
+arxiv>=2.1
+
+# Forecasting module
+statsmodels>=0.14
+scipy>=1.14 # also used directly by app/modules/speech/speaker.py's hand-rolled MFCCs
+
+# Computer Vision module (opencv + onnxruntime via fastembed's CLIP models)
+# Pinned <5 — opencv-python 5.0 dropped the Haar Cascade Python bindings
+# (cv2.CascadeClassifier) in favor of a DNN-based detector needing a
+# separate model download; 4.x still ships Haar cascades in-wheel.
+opencv-python-headless>=4.10,<5
+onnxruntime>=1.19
+# OCR (used by Vision and RAG image ingestion) — ONNX Runtime-based, not
+# Tesseract; see app/modules/vision/ocr.py for why. NOTE: rapidocr-onnxruntime
+# depends on "opencv-python" but that resolves fine against the pinned
+# opencv-python-headless<5 above since both packages provide the `cv2`
+# module — never let pip install plain opencv-python alongside it, or Haar
+# cascades break (cv2.CascadeClassifier disappears in opencv 5.x).
+rapidocr-onnxruntime>=1.4
+
+# Speech AI module
+# CTranslate2-based Whisper, not PyTorch — see app/modules/speech/stt.py.
+faster-whisper>=1.0
+pyttsx3>=2.98
+# No librosa — it depends on numba, whose compiled extension gets blocked by
+# Smart App Control same as PyTorch. speaker.py hand-rolls MFCCs from
+# numpy/scipy instead (both already proven to load fine on this host).
+
+# Autonomous Browser Agent module
+playwright>=1.47
+
+# MLOps Dashboard module
+mlflow>=2.17
+
+# Testing
+pytest>=8.3
+httpx>=0.27
+
+# Distributed AI Infrastructure module
+ray[default]>=2.38
+celery[redis]>=5.4
+kafka-python>=2.0
+pyspark>=3.5 # needs a JVM on PATH to actually run
+# prophet is optional — install separately if you have a C++ toolchain;
+# the forecasting module works fine on ets/arima without it.
+
+# Fine-Tuning (LoRA) + Image/Video Generation (Stable Diffusion, ControlNet)
+# These import torch directly, which earlier in this project's build was
+# blocked outright by Windows Smart App Control. As of this pip resolution,
+# the torch wheel pulled from PyPI imports cleanly on this host — verified
+# with a real end-to-end LoRA fine-tune (distilgpt2 + peft, loss went
+# 2.479 -> 2.475 over 1 epoch) and a real Stable Diffusion image generation
+# job. Whether that's a Windows Update to the SAC policy, or this torch
+# release now shipping signed DLLs where an earlier one didn't, isn't
+# confirmed — treat "does torch import here" as something to verify fresh
+# on any given host via `python -c "import torch"`, not assume from this
+# comment. check_available() in each module still gates real usage and
+# reports the actual failure if this host's policy reverts.
+#
+# NOTE: installing these also pulls in scikit-learn transitively (via
+# transformers' generation utils). scikit-learn's compiled
+# `_pairwise_fast` extension IS blocked by Smart App Control here even
+# though torch itself isn't — `pip uninstall scikit-learn` after install;
+# transformers guards that import behind `is_sklearn_available()` and
+# degrades gracefully (loses speculative-decoding candidate generation,
+# unused by this project) rather than crashing.
+torch>=2.10
+transformers>=4.50
+peft>=0.15            # Fine-Tuning: LoRA
+datasets>=3.0          # Fine-Tuning: training data
+accelerate>=1.0
+diffusers>=0.35        # Image/Video Generator: Stable Diffusion, ControlNet

@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: omniai-frontend
+  namespace: omniai
+  labels:
+    app: omniai-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: omniai-frontend
+  template:
+    metadata:
+      labels:
+        app: omniai-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: omniai-frontend:latest # build via frontend/Dockerfile, push to your registry
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NEXT_PUBLIC_API_BASE
+              value: "https://api.example.com"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: omniai-frontend
+  namespace: omniai
+spec:
+  selector:
+    app: omniai-frontend
+  ports:
+    - port: 80
+      targetPort: 3000
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: omniai-ingress
+  namespace: omniai
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m" # file uploads (RAG, vision, speech)
+spec:
+  rules:
+    - host: app.example.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: omniai-backend
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: omniai-frontend
+                port:
+                  number: 80
