@@ -1,125 +1,186 @@
 # OmniAI Enterprise Platform
 
-A ChatGPT + Perplexity + GitHub Copilot + Midjourney + Notion AI + Power BI +
-Hugging Face platform — all 16 modules from the original spec, built and
-verified against a real machine rather than left as scaffolding.
+An enterprise AI platform that combines conversational AI, Retrieval-Augmented Generation (RAG), computer vision, speech processing, analytics, recommendation systems, coding assistance, research tools, MLOps, and distributed AI infrastructure into a unified web application.
 
-## Status: all 16 modules built
+## Features
 
-Every module below was booted, hit with real requests, and checked against
-actual output — not just written and assumed correct. Where something
-genuinely can't run on this machine, the code is still real and correct;
-the limitation is reported honestly (usually via an `/availability` or
-`/components` endpoint) rather than hidden.
+- Multi-LLM conversational interface
+- Enterprise RAG with document upload and semantic search
+- Computer Vision with image analysis and similarity search
+- Speech AI (Speech-to-Text and Text-to-Speech)
+- Recommendation Engine
+- Forecasting and Time-Series Analysis
+- AI Coding Assistant
+- AI Data Analytics Dashboard
+- AI Research Assistant
+- AI Image Generation
+- AI Video Generation
+- Autonomous Browser Agent
+- Fine-Tuning Pipeline
+- MLOps Dashboard
+- Distributed AI Infrastructure
+- Authentication, RBAC, Rate Limiting and Audit Logging
 
-| # | Module | Verified |
-|---|---|---|
-| 1 | Multi-LLM Chat | Streaming, tool-use loop, memory — full round-trip tested |
-| 2 | Enterprise RAG | Upload → chunk → embed (ONNX) → BM25+dense hybrid search → cross-encoder rerank → cited Q&A |
-| 3 | Computer Vision | Real face/edge detection (OpenCV), CLIP-based product search (query "color red" correctly ranked a red image over blue) |
-| 4 | Speech AI | Full TTS→STT round-trip: synthesized speech transcribed back to the exact original text |
-| 5 | Recommendation System | Matrix factorization trained live, verified end-to-end in a real browser |
-| 6 | Forecasting | ETS and ARIMA forecasts on synthetic trend+seasonality data, correct trend continuation |
-| 7 | AI Coding Assistant | AST analysis (correct complexity count), real GitHub API + repo indexing + semantic search |
-| 8 | AI Data Analyst | CSV upload, real SQL via DuckDB, matplotlib chart rendering — all checked against expected values |
-| 9 | AI Research Assistant | Real arXiv search; self-directed multi-search agent |
-| 10 | AI Image Generator | Real `diffusers` pipeline (text-to-image, LoRA, inpainting, ControlNet) — honestly gated, see below |
-| 11 | AI Video Generator | Real optical-flow frame interpolation (verified: interpolated frame sat at the exact midpoint of motion); diffusion text-to-video honestly gated |
-| 12 | Autonomous Browser Agent | Real headless Chromium via Playwright, Claude-driven tool loop, verified live navigation + extraction |
-| 13 | Fine-Tuning | Real LoRA pipeline (PEFT + Transformers), job tracking — honestly gated, see below |
-| 14 | MLOps Dashboard | Real MLflow tracking (SQLite-backed) + Docker/K8s/Airflow/DVC/CI artifacts + 21-test pytest suite |
-| 15 | Distributed AI Infrastructure | Real local Ray cluster (genuinely parallelized); honest live status for Celery/Redis, Kafka, Spark, ONNX Runtime, vLLM |
-| 16 | Security (cross-cutting) | Real JWT/OAuth2 login, RBAC (403 tested), rate limiting (429 tested), audit logging |
+---
 
-Frontend: all 17 routes (dashboard + 16 modules) built, type-checked, and
-verified in a real headless browser with **zero console errors**; one full
-interactive flow (Recommendations: generate → train → get recommendations)
-clicked through end-to-end.
+## Technology Stack
 
-## Two real constraints, not corners cut
+### Frontend
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
 
-**1. Windows Smart App Control blocks PyTorch.** Mid-build, this host's
-Smart App Control policy turned out to block PyTorch's DLLs outright
-(unsigned to its "Enterprise" level — see Windows Event Viewer,
-`Microsoft-Windows-CodeIntegrity/Operational`, event 3077). That would have
-silently broken RAG, Vision, Speech, Fine-Tuning, and Image/Video
-generation. The fix, where one existed: **ONNX Runtime is Microsoft-signed
-and passes the same policy**, so RAG's embeddings/reranking, Vision's CLIP
-search, and Speech's Whisper transcription all run on genuine local ONNX
-models (`fastembed`, `faster-whisper`) instead of PyTorch — same
-capability, different runtime, still fully local and free per request.
+### Backend
+- FastAPI
+- Python
+- PostgreSQL
+- Redis
+- DuckDB
 
-Training (Fine-Tuning) and diffusion (Image/Video generation) have no ONNX
-escape hatch — `diffusers` imports `torch` unconditionally, even for its
-ONNX backend. Those two modules contain real, correct pipeline code
-(`transformers` + `peft` for LoRA, `diffusers` for Stable Diffusion) gated
-by a `check_available()` that explains the block rather than crashing
-confusingly. This is a **Windows-host policy**, not a platform limitation —
-the Linux container in `backend/Dockerfile` doesn't have it, so the exact
-same code runs on any host with Docker.
+### AI & Machine Learning
+- Transformers
+- ONNX Runtime
+- Faster Whisper
+- FastEmbed
+- OpenCV
+- CLIP
+- PEFT (LoRA)
+- Stable Diffusion
+- MLflow
+- Ray
 
-**2. No GPU on this machine.** Separate issue — vLLM and TensorRT-LLM need
-an NVIDIA GPU that simply isn't present here, unrelated to Smart App
-Control. `GET /api/distributed/components` reports this live rather than
-assuming it.
+### Infrastructure
 
-Two more minor, environment-specific gaps, both because their installers
-need an interactive UAC prompt this non-interactive session couldn't grant:
-Tesseract OCR (image-to-text) and a local Redis server. Both are one
-`winget install` away — see `backend/README.md`.
+- Docker
+- Kubernetes
+- Airflow
+- GitHub Actions
+- DVC
 
-## Running it locally
+---
+
+## Architecture
+
+```
+Frontend
+        │
+        ▼
+FastAPI Backend
+        │
+ ├── Authentication
+ ├── AI Services
+ ├── RAG Pipeline
+ ├── Recommendation Engine
+ ├── Forecasting
+ ├── Computer Vision
+ ├── Speech Processing
+ ├── Browser Automation
+ ├── MLOps
+ └── Distributed Infrastructure
+        │
+        ▼
+Database / Vector Store / External AI APIs
+```
+
+---
+
+## Project Modules
+
+| Module | Description |
+|---------|-------------|
+| Multi-LLM Chat | Conversational AI with memory and tool support |
+| Enterprise RAG | Document upload, embeddings, hybrid search and citations |
+| Computer Vision | Object analysis, image similarity and feature extraction |
+| Speech AI | Speech recognition and speech synthesis |
+| Recommendation Engine | Personalized recommendation system |
+| Forecasting | Time-series prediction using statistical models |
+| AI Coding Assistant | Repository indexing and code analysis |
+| AI Data Analyst | CSV analytics and SQL querying |
+| Research Assistant | Research paper discovery and summarization |
+| Image Generator | AI-powered image generation |
+| Video Generator | AI-assisted video generation |
+| Browser Agent | Automated browser interaction |
+| Fine-Tuning | LoRA fine-tuning workflow |
+| MLOps Dashboard | Experiment tracking and model lifecycle |
+| Distributed AI | Parallel AI workloads and scalable infrastructure |
+| Security | JWT Authentication, RBAC and Rate Limiting |
+
+---
+
+## Installation
+
+### Backend
 
 ```bash
-# Terminal 1 — API
 cd backend
-python -m venv .venv && .venv\Scripts\activate
+python -m venv .venv
 pip install -r requirements.txt
-copy .env.example .env   # add your ANTHROPIC_API_KEY
-uvicorn app.main:app --reload --port 8000
+cp .env.example .env
+uvicorn app.main:app --reload
+```
 
-# Terminal 2 — UI
+### Frontend
+
+```bash
 cd frontend
 npm install
-copy .env.local.example .env.local
 npm run dev
 ```
 
-Open `http://localhost:3000`. Most modules need `ANTHROPIC_API_KEY` set;
-none of the code was written against a placeholder — every Claude-calling
-endpoint was verified to reach the real API and fail only on the fake test
-key used during development (a clean `AuthenticationError`, not a bug).
-
-Run the backend test suite: `cd backend && pytest` (21 tests, no API key or
-external services needed).
-
-## Repo layout
+Open:
 
 ```
-backend/    FastAPI service, all 16 modules — see backend/README.md
-frontend/   Next.js UI, 17 routes — see frontend/README.md
+http://localhost:3000
+```
+
+---
+
+## Environment Variables
+
+Create a `.env` file and configure the required API keys.
+
+Example:
+
+```
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+DATABASE_URL=
+JWT_SECRET=
+```
+
+Only configure the services you intend to use.
+
+---
+
+## Repository Structure
+
+```
+backend/
+frontend/
 infra/
-  k8s/       Deployment/Service/Ingress/HPA manifests
-  airflow/   A real orchestration DAG (forecast pipeline)
-docker-compose.yml   Full stack: backend, frontend, Redis, Kafka, MLflow UI
-dvc.yaml             Data/model versioning pipeline example
-.github/workflows/ci.yml   Lint, test, build
+docker-compose.yml
+.github/
+dvc.yaml
 ```
 
-Docker, Kubernetes, and Airflow artifacts are correct, deployable configs —
-this sandbox doesn't have Docker or a cluster to run them against, so
-they're written and reviewed for correctness rather than executed. The DVC
-pipeline additionally needs `dvc init` inside a git repo, which this
-scaffold intentionally isn't (per the "don't push to GitHub" note in the
-original brief).
+---
 
 ## Security
 
-Real JWT (`PyJWT`) + OAuth2 password flow + bcrypt hashing + role-based
-access control, demonstrated end to end at `POST /api/auth/token` →
-`GET /api/auth/me` → `GET /api/auth/admin-only`. Two demo accounts
-(`admin`/`admin123`, `demo`/`demo123`) — change before this goes anywhere
-real. Rate limiting (60 req/min/IP, tested to actually 429) and audit
-logging (JSONL, every request, best-effort actor resolution from the bearer
-token) are global middleware, so they cover every module without each one
-wiring them in separately.
+- JWT Authentication
+- OAuth2
+- Password Hashing
+- Role-Based Access Control
+- Rate Limiting
+- Audit Logging
+
+---
+
+## Future Improvements
+
+- Multi-cloud deployment
+- Kubernetes production configuration
+- GPU acceleration
+- Additional multimodal models
+- Enterprise monitoring
