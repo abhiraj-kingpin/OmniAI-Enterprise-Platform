@@ -56,7 +56,7 @@ Every module is a self-contained package under `backend/app/modules/<name>/` wit
 
 **Backend** — FastAPI, Pydantic v2, PyJWT, bcrypt, Anthropic SDK, OpenAI SDK, ONNX Runtime, `fastembed`, `faster-whisper`, `rapidocr-onnxruntime`, OpenCV, DuckDB, pandas, statsmodels, PyTorch + Transformers + PEFT + Diffusers, Ray, Celery, kafka-python, PySpark, MLflow, Playwright.
 
-**Frontend** — Next.js 15 (App Router), TypeScript (strict mode), Tailwind CSS.
+**Frontend** — Next.js 15 (App Router), TypeScript (strict mode), Tailwind CSS. The landing page additionally uses Framer Motion, GSAP (ScrollTrigger), Three.js, Lenis (smooth scroll), and Lucide icons — see `frontend/README.md`'s Landing page section.
 
 **Infrastructure** — Docker, Kubernetes manifests, Airflow DAG, DVC pipeline, GitHub Actions CI.
 
@@ -144,9 +144,11 @@ backend/
     modules/               One package per AI module (see table above)
   tests/                  pytest suite
 frontend/
-  app/                    Next.js App Router pages, one per module
-  components/             Shared UI components
-  lib/                    API client, types
+  app/                    page.tsx is the landing page; (app)/ holds the
+                            Sidebar-wrapped dashboard and 15 module pages
+  components/             Shared UI components; landing/ holds the landing
+                            page's sections
+  lib/                    API client, the shared module list, types
 infra/
   k8s/                    Kubernetes manifests
   airflow/                Orchestration DAG
