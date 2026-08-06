@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Response
 
+from app.core.availability import AvailabilityResponse, check_availability
 from app.modules.image_gen.jobs import get_job, list_jobs, start_generate_job
 from app.modules.image_gen.pipeline import check_available
 from app.modules.image_gen.schemas import GenerateRequest, JobStatus
@@ -7,13 +8,9 @@ from app.modules.image_gen.schemas import GenerateRequest, JobStatus
 router = APIRouter()
 
 
-@router.get("/availability")
-async def availability() -> dict[str, str]:
-    try:
-        check_available()
-        return {"available": "true"}
-    except RuntimeError as exc:
-        return {"available": "false", "reason": str(exc)}
+@router.get("/availability", response_model=AvailabilityResponse)
+async def availability() -> AvailabilityResponse:
+    return check_availability(check_available)
 
 
 @router.post("/generate", response_model=JobStatus)

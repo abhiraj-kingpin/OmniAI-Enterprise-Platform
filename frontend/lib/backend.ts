@@ -2,10 +2,18 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
 export class ApiError extends Error {}
 
+/** Matches the {"error": {"code", "message"}} envelope every backend error
+ * response uses (see backend/app/core/exceptions.py). */
+interface ApiErrorBody {
+  error?: { code?: string; message?: string };
+  detail?: string;
+}
+
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    throw new ApiError(text || `Request failed: ${res.status}`);
+    const body: ApiErrorBody = await res.json().catch(() => ({}));
+    const message = body.error?.message ?? body.detail ?? res.statusText ?? `Request failed: ${res.status}`;
+    throw new ApiError(message);
   }
   return res.json() as Promise<T>;
 }

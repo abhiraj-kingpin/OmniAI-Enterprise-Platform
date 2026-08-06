@@ -1,186 +1,225 @@
 # OmniAI Enterprise Platform
 
-An enterprise AI platform that combines conversational AI, Retrieval-Augmented Generation (RAG), computer vision, speech processing, analytics, recommendation systems, coding assistance, research tools, MLOps, and distributed AI infrastructure into a unified web application.
+A modular AI platform combining LLM chat, retrieval-augmented generation, computer vision, speech processing, forecasting, recommendations, and MLOps tooling behind a single FastAPI backend and Next.js frontend.
+
+## System Architecture
+
+```
+┌─────────────────────┐        ┌──────────────────────────────────────┐
+│   Next.js Frontend   │  HTTP  │            FastAPI Backend            │
+│   (17 routes, TS)    │ ─────► │  Auth · Rate Limiting · Audit Logging │
+└─────────────────────┘        │  ┌──────────────────────────────────┐  │
+                                │  │  16 module routers under /api/*  │  │
+                                │  └──────────────────────────────────┘  │
+                                └──────────────┬─────────────────────────┘
+                                               │
+                  ┌────────────────────────────┼────────────────────────────┐
+                  ▼                            ▼                            ▼
+          Anthropic / OpenAI          ONNX Runtime (local)          Redis · Kafka · Ray
+          (chat, agents, LoRA)   (embeddings, OCR, ASR, vision)   (Celery, streaming, distributed)
+```
+
+Every module is a self-contained package under `backend/app/modules/<name>/` with its own request/response schemas, business logic, and router; `app/main.py` mounts each under `/api/<name>`. Cross-cutting concerns (authentication, rate limiting, audit logging, structured error handling) are implemented once as middleware and exception handlers, not per module.
 
 ## Features
 
-- Multi-LLM conversational interface
-- Enterprise RAG with document upload and semantic search
-- Computer Vision with image analysis and similarity search
-- Speech AI (Speech-to-Text and Text-to-Speech)
-- Recommendation Engine
-- Forecasting and Time-Series Analysis
-- AI Coding Assistant
-- AI Data Analytics Dashboard
-- AI Research Assistant
-- AI Image Generation
-- AI Video Generation
-- Autonomous Browser Agent
-- Fine-Tuning Pipeline
-- MLOps Dashboard
-- Distributed AI Infrastructure
-- Authentication, RBAC, Rate Limiting and Audit Logging
+- JWT/OAuth2 authentication with role-based access control
+- Per-IP rate limiting and structured audit logging on every request
+- Streaming chat with tool use across two LLM providers
+- Hybrid (BM25 + dense) retrieval with cross-encoder reranking for RAG
+- Local, GPU-free inference for embeddings, OCR, speech-to-text, and vision via ONNX Runtime
+- Background job tracking for long-running work (fine-tuning, image generation)
+- Live capability reporting for distributed-systems components (Ray, Celery, Kafka, Spark)
 
----
+## AI Modules
+
+| Module | Path prefix | Summary |
+|---|---|---|
+| Multi-LLM Chat | `/api/chat`, `/api/tokens` | Streaming chat across Anthropic and OpenAI, tool-use loop, token counting |
+| Enterprise RAG | `/api/rag` | Document ingestion (PDF/DOCX/PPTX/XLSX/images), hybrid search, cross-encoder reranking, cited Q&A |
+| Computer Vision | `/api/vision` | Face/edge detection (OpenCV), CLIP-based image search |
+| Speech AI | `/api/speech` | Text-to-speech and speech-to-text (Whisper via CTranslate2) |
+| Recommendation System | `/api/recommendations` | Matrix-factorization collaborative filtering |
+| Forecasting | `/api/forecasting` | ETS/ARIMA time-series forecasting |
+| AI Coding Assistant | `/api/coding` | AST-based static analysis, GitHub repository indexing and search |
+| AI Data Analyst | `/api/data-analyst` | CSV/Excel ingestion, SQL execution via DuckDB, chart generation |
+| AI Research Assistant | `/api/research` | arXiv search with a multi-step search agent |
+| AI Image Generator | `/api/image-gen` | Stable Diffusion text-to-image, inpainting, ControlNet, LoRA-adapted generation |
+| AI Video Generator | `/api/video-gen` | Optical-flow frame interpolation; diffusion text-to-video |
+| Autonomous Browser Agent | `/api/browser-agent` | Headless-browser automation (Playwright) driven by an LLM tool loop |
+| Fine-Tuning | `/api/finetune` | LoRA fine-tuning (PEFT + Transformers) with background job tracking |
+| MLOps Dashboard | `/api/mlops` | Experiment tracking (MLflow) |
+| Distributed AI Infrastructure | `/api/distributed` | Ray task execution, Celery/Redis task queue, live component health |
+| Security | cross-cutting | JWT/OAuth2, RBAC, rate limiting, audit logging |
 
 ## Technology Stack
 
-### Frontend
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
+**Backend** — FastAPI, Pydantic v2, PyJWT, bcrypt, Anthropic SDK, OpenAI SDK, ONNX Runtime, `fastembed`, `faster-whisper`, `rapidocr-onnxruntime`, OpenCV, DuckDB, pandas, statsmodels, PyTorch + Transformers + PEFT + Diffusers, Ray, Celery, kafka-python, PySpark, MLflow, Playwright.
 
-### Backend
-- FastAPI
-- Python
-- PostgreSQL
-- Redis
-- DuckDB
+**Frontend** — Next.js 15 (App Router), TypeScript (strict mode), Tailwind CSS.
 
-### AI & Machine Learning
-- Transformers
-- ONNX Runtime
-- Faster Whisper
-- FastEmbed
-- OpenCV
-- CLIP
-- PEFT (LoRA)
-- Stable Diffusion
-- MLflow
-- Ray
+**Infrastructure** — Docker, Kubernetes manifests, Airflow DAG, DVC pipeline, GitHub Actions CI.
 
-### Infrastructure
-
-- Docker
-- Kubernetes
-- Airflow
-- GitHub Actions
-- DVC
-
----
-
-## Architecture
-
-```
-Frontend
-        │
-        ▼
-FastAPI Backend
-        │
- ├── Authentication
- ├── AI Services
- ├── RAG Pipeline
- ├── Recommendation Engine
- ├── Forecasting
- ├── Computer Vision
- ├── Speech Processing
- ├── Browser Automation
- ├── MLOps
- └── Distributed Infrastructure
-        │
-        ▼
-Database / Vector Store / External AI APIs
-```
-
----
-
-## Project Modules
-
-| Module | Description |
-|---------|-------------|
-| Multi-LLM Chat | Conversational AI with memory and tool support |
-| Enterprise RAG | Document upload, embeddings, hybrid search and citations |
-| Computer Vision | Object analysis, image similarity and feature extraction |
-| Speech AI | Speech recognition and speech synthesis |
-| Recommendation Engine | Personalized recommendation system |
-| Forecasting | Time-series prediction using statistical models |
-| AI Coding Assistant | Repository indexing and code analysis |
-| AI Data Analyst | CSV analytics and SQL querying |
-| Research Assistant | Research paper discovery and summarization |
-| Image Generator | AI-powered image generation |
-| Video Generator | AI-assisted video generation |
-| Browser Agent | Automated browser interaction |
-| Fine-Tuning | LoRA fine-tuning workflow |
-| MLOps Dashboard | Experiment tracking and model lifecycle |
-| Distributed AI | Parallel AI workloads and scalable infrastructure |
-| Security | JWT Authentication, RBAC and Rate Limiting |
-
----
+There is no relational database in this stack — module state is either stateless per request, held in local files under `backend/data/` (uploads, model outputs, the MLflow SQLite database), or delegated to Redis for the task queue.
 
 ## Installation
 
-### Backend
+Prerequisites: Python 3.12+, Node.js 18+, and (optionally) Docker.
 
 ```bash
+git clone https://github.com/abhiraj-kingpin/OmniAI-Enterprise-Platform.git
+cd OmniAI-Enterprise-Platform
+
+# Backend
 cd backend
 python -m venv .venv
+.venv\Scripts\activate            # Windows; use `source .venv/bin/activate` on macOS/Linux
 pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload
-```
+copy .env.example .env            # then set ANTHROPIC_API_KEY / OPENAI_API_KEY
+uvicorn app.main:app --reload --port 8000
 
-### Frontend
-
-```bash
+# Frontend (separate terminal)
 cd frontend
 npm install
+copy .env.local.example .env.local
 npm run dev
 ```
 
-Open:
+The frontend runs at `http://localhost:3000` and expects the backend at `http://localhost:8000` (configurable via `NEXT_PUBLIC_API_BASE`). See `backend/README.md` for module-specific setup and `frontend/README.md` for the frontend's structure.
+
+## Configuration
+
+Backend configuration is managed by `app/config.py` (Pydantic Settings), loaded from `backend/.env`.
+
+### Environment Variables
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `ANTHROPIC_API_KEY` | Yes, for Claude-backed modules | — | Anthropic API key |
+| `OPENAI_API_KEY` | Yes, for OpenAI-backed chat | — | OpenAI API key |
+| `CORS_ORIGINS` | No | `["http://localhost:3000"]` | Allowed CORS origins, JSON array |
+| `ENVIRONMENT` | No | `development` | `development` or `production`; controls error detail exposure |
+| `LOG_LEVEL` | No | `INFO` | Python logging level |
+| `JWT_SECRET` | Recommended in production | random per process start | HMAC signing secret for access tokens |
+| `JWT_ALGORITHM` | No | `HS256` | JWT signing algorithm |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | No | `60` | Access token lifetime, minutes |
+| `RATE_LIMIT_PER_MINUTE` | No | `60` | Requests per client IP per minute |
+| `DATA_DIR` | No | `data` | Local storage root (uploads, logs, model outputs) |
+| `REDIS_URL` | Yes, for the Distributed module's Celery integration | `redis://localhost:6379/0` | Celery broker/result backend |
+| `KAFKA_BOOTSTRAP_SERVERS` | Yes, for the Kafka example producer/consumer | `localhost:9092` | Kafka broker address |
+| `NEXT_PUBLIC_API_BASE` (frontend) | No | `http://localhost:8000` | Backend base URL |
+
+If `JWT_SECRET` is left unset, a random secret is generated on process start — tokens issued before a restart stop validating. Set it explicitly for any deployment that needs to survive a restart.
+
+## API Documentation
+
+Interactive OpenAPI documentation is served by FastAPI at `/docs` (Swagger UI) and `/redoc` when the backend is running.
+
+All API error responses use a consistent envelope:
+
+```json
+{"error": {"code": "not_found", "message": "Job 'xyz' not found"}}
+```
+
+Validation errors additionally include a `details` array with per-field errors. See `backend/app/core/exceptions.py`.
+
+Authentication follows the OAuth2 password flow:
 
 ```
-http://localhost:3000
+POST /api/auth/token       — obtain an access token (form: username, password)
+GET  /api/auth/me          — current user
+GET  /api/auth/admin-only  — example admin-only route
 ```
 
----
-
-## Environment Variables
-
-Create a `.env` file and configure the required API keys.
-
-Example:
-
-```
-OPENAI_API_KEY=
-ANTHROPIC_API_KEY=
-DATABASE_URL=
-JWT_SECRET=
-```
-
-Only configure the services you intend to use.
-
----
-
-## Repository Structure
+## Project Structure
 
 ```
 backend/
+  app/
+    main.py              Application assembly: middleware, exception handlers, routers
+    config.py             Settings (environment-driven)
+    core/                 Auth, RBAC, rate limiting, audit logging, structured errors, job store
+    api/                  Chat and auth routes
+    providers/             LLM provider abstraction (Anthropic, OpenAI)
+    modules/               One package per AI module (see table above)
+  tests/                  pytest suite
 frontend/
+  app/                    Next.js App Router pages, one per module
+  components/             Shared UI components
+  lib/                    API client, types
 infra/
-docker-compose.yml
-.github/
-dvc.yaml
+  k8s/                    Kubernetes manifests
+  airflow/                Orchestration DAG
+docker-compose.yml        Full local stack (backend, frontend, Redis, Kafka, MLflow UI)
+dvc.yaml                  Data/model versioning pipeline
+.github/workflows/ci.yml  Lint, test, build
 ```
 
----
+## Deployment
+
+### Docker
+
+```bash
+docker compose up --build
+```
+
+Brings up the backend, frontend, Redis, Kafka (with Zookeeper), and an MLflow UI. Set secrets in `backend/.env` before starting — `docker-compose.yml` loads it via `env_file`.
+
+### Kubernetes
+
+Manifests in `infra/k8s/` define a Deployment, Service, Ingress, and HorizontalPodAutoscaler for the backend. Apply with:
+
+```bash
+kubectl apply -f infra/k8s/
+```
+
+GPU-dependent modules (image/video generation at scale, LoRA training) should run on a node pool with `nvidia.com/gpu` scheduled — see the manifest for the resource request shape.
 
 ## Security
 
-- JWT Authentication
-- OAuth2
-- Password Hashing
-- Role-Based Access Control
-- Rate Limiting
-- Audit Logging
+- **Authentication**: JWT (PyJWT) issued via the OAuth2 password grant; bcrypt password hashing.
+- **Authorization**: Role-based access control via `require_role(...)` dependencies.
+- **Rate limiting**: Fixed-window, per-client-IP, in-memory (single-process; swap for a Redis-backed limiter behind more than one worker).
+- **Audit logging**: Every request logged as JSON (actor, method, path, status, latency) to a rotating file.
+- **Secrets**: Provided via environment variables / `.env`, never committed. `backend/.env` is gitignored.
+- **Demo accounts**: Two seeded accounts (`admin`/`admin123`, `demo`/`demo123`) exist for local development only — replace the in-memory user store (`app/core/users.py`) with a real identity provider before any non-local deployment.
 
----
+## Performance
 
-## Future Improvements
+- LLM calls stream by default to minimize perceived latency.
+- Local inference (embeddings, OCR, ASR, vision) runs on ONNX Runtime, avoiding network round-trips for those operations.
+- Long-running work (fine-tuning, image generation) runs on background threads with a poll-based status API rather than blocking the request.
+- `lru_cache` is used to avoid reloading local models on every request.
 
-- Multi-cloud deployment
-- Kubernetes production configuration
-- GPU acceleration
-- Additional multimodal models
-- Enterprise monitoring
+## Scaling
+
+- The backend is stateless aside from in-memory rate-limit counters and the demo user store — both called out above as the first things to externalize (Redis, a real database) before running more than one instance.
+- Celery workers scale horizontally against the shared Redis broker.
+- Ray provides local multi-core parallelism; point it at a Ray cluster address for multi-node scaling without code changes.
+
+## Development Guide
+
+```bash
+# Backend
+cd backend
+pip install -r requirements-dev.txt
+ruff check .          # lint
+pytest                # test suite (21 tests, no external services required)
+
+# Frontend
+cd frontend
+npm run lint
+npm run typecheck
+npm run build
+```
+
+## Contributing
+
+1. Branch from `main`.
+2. Keep changes scoped to one module or concern per pull request.
+3. Run the backend lint/test suite and the frontend lint/typecheck/build before opening a PR.
+4. Follow the existing module structure (`schemas.py`, logic module(s), `router.py`) for new modules.
+
+## License
+
+No license file is currently included in this repository; all rights reserved by the copyright holder unless a license is added.

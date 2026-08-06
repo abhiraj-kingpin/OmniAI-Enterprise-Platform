@@ -1,10 +1,9 @@
 # Full local stack: backend, frontend, and the distributed-infra pieces the
 # Distributed AI Infrastructure module talks to (Redis for Celery, Kafka for
 # streaming ingestion, an MLflow UI for the tracking DB the backend already
-# writes to). `docker compose up` on a host with Docker gives you all of it;
-# this sandbox doesn't have Docker installed, so this file is written
-# correctly but not run — see backend/app/modules/distributed/router.py's
-# /components endpoint for what's live vs. not on this specific host.
+# writes to). `docker compose up` brings up all of it — see
+# backend/app/modules/distributed/router.py's /components endpoint for a
+# live view of which of these are reachable at runtime.
 services:
   backend:
     build: ./backend

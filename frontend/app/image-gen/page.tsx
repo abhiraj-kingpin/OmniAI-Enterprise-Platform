@@ -3,12 +3,8 @@
 import { useEffect, useState } from "react";
 
 import { apiGet, apiPost } from "@/lib/backend";
-import { Button, Card, PageHeader, StatusLine, TextInput } from "@/components/ui";
-
-interface Availability {
-  available: string;
-  reason?: string;
-}
+import { AvailabilityCard, Button, Card, PageHeader, StatusLine, TextInput } from "@/components/ui";
+import type { Availability } from "@/lib/types";
 
 export default function ImageGenPage() {
   const [availability, setAvailability] = useState<Availability | null>(null);
@@ -43,15 +39,7 @@ export default function ImageGenPage() {
 
       <div className="space-y-4">
         <Card title="Availability">
-          {availability ? (
-            availability.available === "true" ? (
-              <p className="text-sm text-green-400">Available — generation will run for real.</p>
-            ) : (
-              <StatusLine text={availability.reason ?? "Unavailable"} error />
-            )
-          ) : (
-            <StatusLine text="Checking..." />
-          )}
+          <AvailabilityCard availability={availability} availableMessage="Available for generation." />
         </Card>
 
         <Card title="Generate">

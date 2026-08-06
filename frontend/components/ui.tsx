@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 
+import type { Availability } from "@/lib/types";
+
 export function Card({ title, children }: { title?: string; children: ReactNode }) {
   return (
     <div className="rounded-xl border border-neutral-800 bg-neutral-900/50 p-4">
@@ -115,6 +117,23 @@ export function JsonView({ data }: { data: unknown }) {
       {JSON.stringify(data, null, 2)}
     </pre>
   );
+}
+
+/** Renders a module's /availability check result: a success message when
+ * available, otherwise the backend's reason. Used by modules gated behind
+ * a host-dependent capability check (Fine-Tuning, Image/Video Generation). */
+export function AvailabilityCard({
+  availability,
+  availableMessage,
+}: {
+  availability: Availability | null;
+  availableMessage: string;
+}) {
+  if (!availability) return <StatusLine text="Checking..." />;
+  if (!availability.available) {
+    return <StatusLine text={availability.reason ?? "Unavailable"} error />;
+  }
+  return <p className="text-sm text-green-400">{availableMessage}</p>;
 }
 
 export function PageHeader({ title, description }: { title: string; description: string }) {

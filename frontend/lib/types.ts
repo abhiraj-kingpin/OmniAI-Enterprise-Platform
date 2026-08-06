@@ -1,3 +1,10 @@
+/** Matches backend/app/core/availability.py's AvailabilityResponse — used
+ * by any module gated behind a host-dependent capability check. */
+export interface Availability {
+  available: boolean;
+  reason?: string | null;
+}
+
 export type Role = "user" | "assistant";
 
 export interface ChatMessage {

@@ -3,12 +3,8 @@
 import { useEffect, useState } from "react";
 
 import { apiGet } from "@/lib/backend";
-import { Card, PageHeader, StatusLine } from "@/components/ui";
-
-interface Availability {
-  available: string;
-  reason?: string;
-}
+import { AvailabilityCard, Card, PageHeader } from "@/components/ui";
+import type { Availability } from "@/lib/types";
 
 interface RlhfConcepts {
   summary: string;
@@ -34,17 +30,10 @@ export default function FinetunePage() {
 
       <div className="space-y-4">
         <Card title="Availability">
-          {availability ? (
-            availability.available === "true" ? (
-              <p className="text-sm text-green-400">
-                Available on this host — POST /api/finetune/jobs to start a real training run.
-              </p>
-            ) : (
-              <StatusLine text={availability.reason ?? "Unavailable"} error />
-            )
-          ) : (
-            <StatusLine text="Checking..." />
-          )}
+          <AvailabilityCard
+            availability={availability}
+            availableMessage="Available — POST /api/finetune/jobs to start a training run."
+          />
         </Card>
 
         {rlhf && (

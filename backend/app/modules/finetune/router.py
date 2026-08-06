@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
+from app.core.availability import AvailabilityResponse, check_availability
 from app.modules.finetune.jobs import get_job, list_jobs, start_job
 from app.modules.finetune.lora_pipeline import check_available
 from app.modules.finetune.schemas import JobStatus, RlhfConceptsResponse, StartJobRequest
@@ -7,13 +8,9 @@ from app.modules.finetune.schemas import JobStatus, RlhfConceptsResponse, StartJ
 router = APIRouter()
 
 
-@router.get("/availability")
-async def availability() -> dict[str, str]:
-    try:
-        check_available()
-        return {"available": "true"}
-    except RuntimeError as exc:
-        return {"available": "false", "reason": str(exc)}
+@router.get("/availability", response_model=AvailabilityResponse)
+async def availability() -> AvailabilityResponse:
+    return check_availability(check_available)
 
 
 @router.post("/jobs", response_model=JobStatus)
@@ -64,11 +61,9 @@ async def rlhf_concepts() -> RlhfConceptsResponse:
         ],
         why_not_implemented_here=(
             "RLHF needs three models in memory at once (policy, reference, "
-            "reward) plus an RL training loop (e.g. TRL's PPOTrainer) — all "
-            "PyTorch, and heavier than the single-model LoRA case even on a "
-            "host where PyTorch runs. Combined with this host's Smart App "
-            "Control block on PyTorch (see lora_pipeline.py), a real RLHF "
-            "run isn't practical here. The stages above are what an "
-            "unrestricted host with a GPU would actually run."
+            "reward) plus an RL training loop (e.g. TRL's PPOTrainer) — "
+            "substantially heavier than the single-model LoRA case this "
+            "module implements, and impractical without a GPU. The stages "
+            "above are what a GPU-backed training pipeline would run."
         ),
     )

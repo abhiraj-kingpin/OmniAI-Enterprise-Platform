@@ -1,9 +1,8 @@
-"""Real Kafka producer/consumer code (kafka-python — pure Python protocol
+"""Kafka producer/consumer code (kafka-python — pure Python protocol
 implementation, no compiled client library). Needs an actual Kafka broker
-reachable at KAFKA_BOOTSTRAP_SERVERS; not something this sandbox can stand
-up (a broker needs either Zookeeper or KRaft mode plus persistent storage —
-practically a Docker Compose service, see docker-compose.yml at the repo
-root).
+reachable at KAFKA_BOOTSTRAP_SERVERS; a broker needs either Zookeeper or
+KRaft mode plus persistent storage, so run it via the `kafka` service in
+docker-compose.yml at the repo root rather than standing one up manually.
 
 Sketches the shape this platform would use Kafka for: RAG document ingestion
 as a stream (upload -> "documents.ingested" topic -> a consumer group does

@@ -3,12 +3,8 @@
 import { useEffect, useState } from "react";
 
 import { API_BASE, apiGet } from "@/lib/backend";
-import { Button, Card, FileInput, PageHeader, StatusLine } from "@/components/ui";
-
-interface Availability {
-  available: string;
-  reason?: string;
-}
+import { AvailabilityCard, Button, Card, FileInput, PageHeader, StatusLine } from "@/components/ui";
+import type { Availability } from "@/lib/types";
 
 export default function VideoGenPage() {
   const [frameA, setFrameA] = useState<File | null>(null);
@@ -73,15 +69,7 @@ export default function VideoGenPage() {
         </Card>
 
         <Card title="Text-to-video diffusion — availability">
-          {availability ? (
-            availability.available === "true" ? (
-              <p className="text-sm text-green-400">Available on this host.</p>
-            ) : (
-              <StatusLine text={availability.reason ?? "Unavailable"} error />
-            )
-          ) : (
-            <StatusLine text="Checking..." />
-          )}
+          <AvailabilityCard availability={availability} availableMessage="Available for generation." />
         </Card>
       </div>
     </div>

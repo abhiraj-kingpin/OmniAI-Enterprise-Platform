@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile
 
 from app.config import settings
+from app.core.availability import AvailabilityResponse, check_availability
 from app.modules.video_gen.diffusion_pipeline import check_available
 from app.modules.video_gen.interpolation import frames_to_gif, interpolate
 from app.modules.video_gen.jobs import get_job, list_jobs, start_generate_job
@@ -55,13 +56,9 @@ async def download_interpolated(path: str) -> Response:
     return Response(content=resolved.read_bytes(), media_type=media_type)
 
 
-@router.get("/availability")
-async def availability() -> dict[str, str]:
-    try:
-        check_available()
-        return {"available": "true"}
-    except RuntimeError as exc:
-        return {"available": "false", "reason": str(exc)}
+@router.get("/availability", response_model=AvailabilityResponse)
+async def availability() -> AvailabilityResponse:
+    return check_availability(check_available)
 
 
 @router.post("/generate", response_model=JobStatus)
@@ -98,10 +95,10 @@ async def lip_sync_concepts() -> LipSyncConceptsResponse:
         ],
         why_not_implemented_here=(
             "Every practical lip-sync model (Wav2Lip, SadTalker, etc.) is "
-            "PyTorch-based, so it hits the same Smart App Control block as "
-            "Image/Video diffusion and Fine-Tuning. The Speech AI module's "
-            "faster-whisper transcription (torch-free, via CTranslate2) "
-            "could feed word timing into stage 1 of this pipeline on a host "
-            "where stages 2-3 can actually run."
+            "a separate PyTorch model family from this platform's "
+            "text-to-video pipeline and isn't part of this module's "
+            "dependency set. The Speech AI module's faster-whisper "
+            "transcription (CTranslate2, not PyTorch) could feed word "
+            "timing into stage 1 of this pipeline if stages 2-3 were added."
         ),
     )
