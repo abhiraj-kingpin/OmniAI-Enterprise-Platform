@@ -1,0 +1,25 @@
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+exclude = [".venv", "data"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes (unused imports/variables, undefined names)
+    "I",   # isort (import sorting)
+    "UP",  # pyupgrade (modern syntax)
+    "B",   # flake8-bugbear (common bug patterns)
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501", # line length is a formatter concern, not a lint failure
+    "B008", # FastAPI's `Depends(...)` as a default argument is the idiomatic pattern
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

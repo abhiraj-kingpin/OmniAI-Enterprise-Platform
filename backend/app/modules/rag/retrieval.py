@@ -53,7 +53,7 @@ def hybrid_search(
         reranker = get_reranker()
         documents = [r.chunk.text for r in results]
         scores = list(reranker.rerank(query, documents))
-        for r, s in zip(results, scores):
+        for r, s in zip(results, scores, strict=True):
             r.rerank_score = float(s)
         results.sort(key=lambda r: r.rerank_score, reverse=True)
     else:

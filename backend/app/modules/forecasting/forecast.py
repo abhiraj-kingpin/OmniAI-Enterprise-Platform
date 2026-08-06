@@ -49,7 +49,7 @@ def _forecast_ets(series: pd.Series, horizon: int) -> list[ForecastPoint]:
             lower=float(v - 1.96 * residual_std * ((i + 1) ** 0.5)),
             upper=float(v + 1.96 * residual_std * ((i + 1) ** 0.5)),
         )
-        for i, (d, v) in enumerate(zip(future_idx, point_forecast))
+        for i, (d, v) in enumerate(zip(future_idx, point_forecast, strict=True))
     ]
 
 

@@ -114,7 +114,7 @@ export default function VisionPage() {
             <StatusLine text={status} />
           </div>
           {faces && <p className="mt-1 text-xs text-neutral-400">Faces: {JSON.stringify(faces)}</p>}
-          {caption && <p className="mt-1 text-xs text-neutral-300">"{caption}"</p>}
+          {caption && <p className="mt-1 text-xs text-neutral-300">&ldquo;{caption}&rdquo;</p>}
         </Card>
 
         <Card title="2. CLIP product search">

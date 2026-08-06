@@ -1,0 +1,7 @@
+# Development-only tooling: test framework and linter. Not installed in
+# the production image (see Dockerfile) — only requirements.txt is.
+-r requirements.txt
+
+pytest>=8.3
+httpx2>=2.9  # fastapi.testclient.TestClient's HTTP client (httpx's successor package)
+ruff>=0.16

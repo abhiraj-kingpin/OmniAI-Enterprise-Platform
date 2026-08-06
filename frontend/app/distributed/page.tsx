@@ -77,7 +77,7 @@ export default function DistributedPage() {
               </p>
               {rayResult.results.map((r, i) => (
                 <p key={i} className="text-xs text-neutral-300">
-                  "{r.text_preview}" — {r.word_count} words
+                  &ldquo;{r.text_preview}&rdquo; — {r.word_count} words
                 </p>
               ))}
             </div>

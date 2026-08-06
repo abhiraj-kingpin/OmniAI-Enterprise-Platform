@@ -11,8 +11,14 @@ node_modules/
 frontend/.next/
 frontend/.env.local
 frontend/out/
+*.tsbuildinfo
 
 # Editors / OS
 .vscode/
 .DS_Store
 backend/data/
+
+# Lint/tool caches and local-only binaries (see backend/README.md for how
+# to fetch these — they're host-specific, not project source)
+.ruff_cache/
+tools/
