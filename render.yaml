@@ -1,0 +1,56 @@
+# Render Blueprint — deploys the backend as a web service plus a Celery
+# worker, both built from backend/Dockerfile. Verify this against Render's
+# current Blueprint schema (render.com/docs/blueprint-spec) before relying
+# on it — the exact key names have changed across Render's product
+# versions; if `render blueprint` or "New > Blueprint" in the dashboard
+# rejects this file, create the two services manually instead (New Web
+# Service / New Background Worker, pointing at backend/Dockerfile) — see
+# the deployment steps in README.md's Deployment section.
+#
+# Redis is deliberately not defined here — create it separately via
+# Render's dashboard (New > Key Value) and paste its connection string
+# into REDIS_URL below, since that resource type's Blueprint syntax is the
+# part most likely to have moved since this file was written.
+
+services:
+  - type: web
+    name: omniai-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: AI_PROVIDER
+        value: anthropic
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ORIGINS
+        value: '["https://your-frontend.vercel.app"]' # replace with your real Vercel URL
+      - key: JWT_SECRET
+        generateValue: true
+      - key: REDIS_URL
+        sync: false # paste the Key Value instance's connection string here
+      - key: DATA_DIR
+        value: /var/data
+    disk:
+      name: omniai-data
+      mountPath: /var/data
+      sizeGB: 1
+
+  - type: worker
+    name: omniai-celery-worker
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: celery -A app.modules.distributed.celery_app worker --loglevel=info
+    plan: starter
+    envVars:
+      - key: REDIS_URL
+        sync: false # same value as the web service's REDIS_URL

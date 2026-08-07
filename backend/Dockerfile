@@ -17,4 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
 COPY app ./app
 
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Shell form so $PORT expands — Render (and most host platforms) assign the
+# port dynamically via that env var; falls back to 8000 for local/Compose
+# runs where it's unset.
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}

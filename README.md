@@ -164,6 +164,29 @@ dvc.yaml                  Data/model versioning pipeline
 
 ## Deployment
 
+### Render (backend) + Vercel (frontend)
+
+The backend needs a real, always-on server — long-running generation jobs, in-memory job/session state, Playwright's browser, and local model weights don't survive a serverless function's per-invocation lifecycle. Render runs it as a normal container instead. The frontend has no such constraints and fits Vercel's model well.
+
+**Backend on Render:**
+
+1. **New Web Service** → connect this repo → set **Dockerfile Path** to `backend/Dockerfile` and **Docker Build Context** to `backend`.
+2. Pick a plan with enough RAM to hold the ONNX/PyTorch models this backend loads (fastembed, faster-whisper, and — if you exercise Fine-Tuning/Image/Video Generation — PyTorch itself); the smallest tier will not have enough memory.
+3. Add environment variables: `AI_PROVIDER`, that provider's API key, `ENVIRONMENT=production`, `JWT_SECRET` (generate one), and `CORS_ORIGINS` set to your Vercel URL once you have it (e.g. `["https://your-app.vercel.app"]`).
+4. Add a **Disk**, mount path `/var/data`, and set `DATA_DIR=/var/data` — without this, uploads/MLflow's database/generated media are lost on every redeploy.
+5. Set **Health Check Path** to `/api/health`.
+6. For the Distributed module's Celery integration: create a Render **Key Value** (Redis-compatible) instance, then add a **Background Worker** (same Dockerfile, but override the start command to `celery -A app.modules.distributed.celery_app worker --loglevel=info`) — both it and the web service need the same `REDIS_URL`.
+
+A best-effort `render.yaml` Blueprint for the web service + worker is at the repo root — verify it against Render's current Blueprint schema before relying on it (see the comment at the top of that file for why), or just follow the manual steps above, which don't depend on the schema at all.
+
+**Frontend on Vercel:**
+
+1. Import this repo, set the **Root Directory** to `frontend`.
+2. Add `NEXT_PUBLIC_API_BASE` = your Render backend's public URL.
+3. Deploy — Next.js needs no other configuration on Vercel.
+
+Note that GPU-dependent generation (Image/Video Generation, Fine-Tuning) will run on CPU on Render exactly as it does locally — real output, same slower-than-a-GPU pace, not a Render-specific limitation.
+
 ### Docker
 
 ```bash
