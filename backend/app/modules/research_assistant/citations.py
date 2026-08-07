@@ -1,14 +1,15 @@
 """Citation extraction: download the paper PDF, pull text from the
-references section, ask Claude to pull out a clean citation list."""
+references section, and ask the LLM to pull out a clean citation list."""
 
 import io
 import json
 
-import anthropic
 import pypdf
 import requests
 
 from app.modules.research_assistant.schemas import Paper
+from app.providers.factory import get_provider
+from app.providers.types import AIMessage
 
 _CITATIONS_SCHEMA = {
     "type": "object",
@@ -33,10 +34,8 @@ def _fetch_pdf_text(pdf_url: str) -> str:
 async def extract_citations(paper: Paper) -> list[str]:
     tail_text = _fetch_pdf_text(paper.pdf_url)
 
-    client = anthropic.AsyncAnthropic()
-    response = await client.messages.create(
-        model="claude-opus-5",
-        max_tokens=2048,
+    response = await get_provider().complete(
+        messages=[AIMessage(role="user", content=tail_text[:15000])],
         system=(
             "This is the tail of an academic paper's PDF text, which should "
             "include its reference list. Extract each individual citation as "
@@ -44,8 +43,7 @@ async def extract_citations(paper: Paper) -> list[str]:
             "source format gives you). Ignore page headers/footers and body "
             "text that isn't a reference entry."
         ),
-        messages=[{"role": "user", "content": tail_text[:15000]}],
-        output_config={"format": {"type": "json_schema", "schema": _CITATIONS_SCHEMA}},
+        max_tokens=2048,
+        response_schema=_CITATIONS_SCHEMA,
     )
-    text_block = next(b for b in response.content if b.type == "text")
-    return json.loads(text_block.text)["citations"]
+    return json.loads(response.text)["citations"]

@@ -2,8 +2,10 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
 from app.memory import store
-from app.providers.registry import get_provider
+from app.providers.factory import get_provider
+from app.providers.types import AIMessage
 from app.schemas import ChatMessage, ChatRequest, StreamChunk
+from app.tools import TOOL_DEFINITIONS, run_tool
 
 router = APIRouter()
 
@@ -12,15 +14,16 @@ router = APIRouter()
 async def chat_stream(req: ChatRequest) -> StreamingResponse:
     store.append(req.session_id, ChatMessage(role="user", content=req.message))
     provider = get_provider(req.provider, req.model)
-    history = store.get(req.session_id)
+    history = [AIMessage(role=m.role, content=m.content) for m in store.get(req.session_id)]
 
     async def event_generator():
         assistant_text = ""
         try:
-            async for chunk in provider.stream_chat(
+            async for chunk in provider.stream(
                 messages=history,
                 system=req.system,
-                use_tools=req.use_tools,
+                tools=TOOL_DEFINITIONS if req.use_tools else None,
+                execute_tool=run_tool,
             ):
                 if chunk.type == "text":
                     assistant_text += chunk.content

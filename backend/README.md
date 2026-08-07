@@ -19,7 +19,7 @@ app/
     jobs.py                   Generic background-job tracker
     env.py                    Loads .env before module imports that need it at import time
   api/                  Chat and auth routes (not module-scoped)
-  providers/             LLM provider abstraction (Anthropic, OpenAI)
+  providers/             The AI service layer — see below
   modules/
     rag/                data_analyst/       research_assistant/
     forecasting/         recommendations/    coding_assistant/
@@ -38,7 +38,7 @@ cd backend
 python -m venv .venv
 .venv\Scripts\activate        # Windows; `source .venv/bin/activate` on macOS/Linux
 pip install -r requirements.txt
-copy .env.example .env        # then set ANTHROPIC_API_KEY / OPENAI_API_KEY
+copy .env.example .env        # then set AI_PROVIDER and that provider's API key — see AI Service Layer below
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -78,10 +78,64 @@ Some Windows security policies (Smart App Control) block unsigned compiled exten
 
 `GET /api/distributed/components` reports live availability for Ray, Celery/Redis, Kafka, Spark, ONNX Runtime, and GPU-dependent inference engines (vLLM/TensorRT-LLM) rather than a static claim — use it to check what's actually reachable in a given environment.
 
+## AI service layer
+
+Every module that calls an LLM goes through `app/providers/`, not a provider SDK directly — no file outside `app/providers/` imports `anthropic`, `openai`, or `google.genai`. Switching providers is an environment variable, not a code change.
+
+```
+app/providers/
+  types.py          Provider-agnostic data shapes (AIMessage, ToolCall, AIResponse, ...)
+  base.py            The AIProvider interface: complete(), stream(), count_tokens()
+  exceptions.py       ProviderUnavailableError
+  factory.py           get_provider(name=None, model=None) — the only place a
+                         provider name maps to a concrete class
+  anthropic_provider.py
+  openai_provider.py
+  gemini_provider.py
+  ollama_provider.py    Reuses openai_provider.py's translation logic wholesale
+                          against Ollama's own OpenAI-compatible endpoint
+```
+
+### Selecting a provider
+
+Set `AI_PROVIDER` in `.env` to `anthropic`, `openai`, `gemini`, or `ollama`, plus that provider's API key (Ollama needs no key — just a running local server):
+
+```bash
+# Anthropic (default)
+AI_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+
+# OpenAI
+AI_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+
+# Gemini
+AI_PROVIDER=gemini
+GEMINI_API_KEY=...
+
+# Ollama (local — run `ollama serve` and `ollama pull llama3.1` first)
+AI_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_DEFAULT_MODEL=llama3.1
+```
+
+`AI_PROVIDER` is the default for every module except **Multi-LLM Chat**, which lets a user pick a provider per conversation (the `provider` field on `POST /api/chat/stream` and `POST /api/tokens/count` — see `ChatRequest`/`TokenCountRequest` in `app/schemas.py`) — an explicit choice there overrides the environment default for that request only. `get_provider()` in `factory.py` handles both: called with no arguments, it reads `AI_PROVIDER`; called with a name, it uses that name instead.
+
+An unknown provider name or a missing API key raises `ProviderUnavailableError` (HTTP 503) before any network call is made, with a message naming exactly what's misconfigured — not a stack trace from deep inside a provider SDK.
+
+### Provider capability notes
+
+- **Tool calling**: normalized in `types.ToolDefinition`/`ToolCall`/`ToolResult`; each adapter translates to its own wire format (Anthropic's content blocks, OpenAI's `tool_calls`, Gemini's `FunctionCall`/`FunctionResponse`). Ollama's support depends on the locally pulled model.
+- **Vision**: `AIMessage.content` accepts a list of `TextPart`/`ImagePart` for any provider; whether a given model actually has vision depends on the model, not this layer.
+- **Structured output** (`response_schema` on `complete()`): uses each provider's native JSON-schema-constrained output where one exists (Anthropic, OpenAI strict mode, Gemini). Not exercised for Ollama — support varies by model.
+- **Token counting**: exact via a real endpoint for Anthropic and Gemini; a local `tiktoken` estimate for OpenAI and Ollama (documented as approximate in `openai_provider.py`).
+
+Gemini and Ollama were implemented and their message/tool-construction logic verified directly (see `app/providers/gemini_provider.py`'s helpers), but not exercised against a live API in this environment — no Gemini key or local Ollama server was available here. Anthropic and OpenAI were verified against their real APIs (requests reach the provider and fail only on this repo's placeholder key, the same signal used throughout this project).
+
 ## Extending
 
-- New chat provider: implement `LLMProvider.stream_chat`, register in `app/providers/registry.py`.
 - New module: create `app/modules/<name>/{schemas,router}.py`, add it to `_MODULE_ROUTERS` in `app/main.py`.
+- New AI provider: implement `AIProvider` (`app/providers/base.py`) in a new `app/providers/<name>_provider.py`, register it in `factory.py`'s `_PROVIDERS` dict.
 - New background job (start/poll pattern): use `app/core/jobs.JobStore`, following `app/modules/finetune/jobs.py` or `app/modules/image_gen/jobs.py`.
 - Protecting a route: `Depends(require_role(Role.ADMIN))` from `app.core.rbac` (see `app/api/auth.py`).
 - New error type: subclass `app.core.exceptions.AppError` with a `status_code` and `code`.

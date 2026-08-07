@@ -8,9 +8,12 @@ class ChatMessage(BaseModel):
     content: str
 
 
+AIProviderName = Literal["anthropic", "openai", "gemini", "ollama"]
+
+
 class ChatRequest(BaseModel):
     session_id: str
-    provider: Literal["anthropic", "openai"] = "anthropic"
+    provider: AIProviderName = "anthropic"
     model: str = "claude-opus-5"
     message: str
     system: str | None = None
@@ -29,7 +32,7 @@ class StreamChunk(BaseModel):
 
 
 class TokenCountRequest(BaseModel):
-    provider: Literal["anthropic"] = "anthropic"
+    provider: AIProviderName = "anthropic"
     model: str = "claude-opus-5"
     messages: list[ChatMessage]
     system: str | None = None

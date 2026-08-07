@@ -12,6 +12,11 @@ const MODELS: Record<Provider, { id: string; label: string }[]> = {
     { id: "gpt-4o", label: "GPT-4o" },
     { id: "gpt-4o-mini", label: "GPT-4o mini" },
   ],
+  gemini: [
+    { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+    { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+  ],
+  ollama: [{ id: "llama3.1", label: "Llama 3.1 (local)" }],
 };
 
 interface Props {
@@ -33,6 +38,8 @@ export default function ModelSelector({ provider, model, onChange }: Props) {
       >
         <option value="anthropic">Anthropic</option>
         <option value="openai">OpenAI</option>
+        <option value="gemini">Gemini</option>
+        <option value="ollama">Ollama (local)</option>
       </select>
       <select
         value={model}

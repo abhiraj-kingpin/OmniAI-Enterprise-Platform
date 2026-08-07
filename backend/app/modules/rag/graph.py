@@ -8,11 +8,12 @@ and traversal pattern at prototype scale, not production graph storage.
 
 import json
 
-import anthropic
 import networkx as nx
 
 from app.modules.rag.schemas import GraphEdge, GraphNode, GraphResponse
 from app.modules.rag.store import Collection
+from app.providers.factory import get_provider
+from app.providers.types import AIMessage
 
 MAX_CHUNKS_FOR_EXTRACTION = 15
 MAX_CHARS_PER_BATCH = 6000
@@ -40,21 +41,18 @@ _TRIPLE_SCHEMA = {
 
 
 async def _extract_triples(text: str) -> list[dict[str, str]]:
-    client = anthropic.AsyncAnthropic()
-    response = await client.messages.create(
-        model="claude-opus-5",
-        max_tokens=2048,
+    response = await get_provider().complete(
+        messages=[AIMessage(role="user", content=text)],
         system=(
             "Extract factual (subject, relation, object) triples from the "
             "text. Use short, canonical entity names (merge obvious aliases). "
             "Keep relations as short verb phrases. Return only clearly "
             "stated facts, not speculation."
         ),
-        messages=[{"role": "user", "content": text}],
-        output_config={"format": {"type": "json_schema", "schema": _TRIPLE_SCHEMA}},
+        max_tokens=2048,
+        response_schema=_TRIPLE_SCHEMA,
     )
-    text_block = next(b for b in response.content if b.type == "text")
-    return json.loads(text_block.text)["triples"]
+    return json.loads(response.text)["triples"]
 
 
 async def build_graph(collection: Collection, collection_name: str) -> GraphResponse:

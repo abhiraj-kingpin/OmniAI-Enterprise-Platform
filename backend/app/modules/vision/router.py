@@ -3,7 +3,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
-from app.modules.vision import claude_vision
+from app.modules.vision import llm_vision
 from app.modules.vision.classical import detect_edges, detect_faces
 from app.modules.vision.clip_search import get_catalog
 from app.modules.vision.ocr import extract_text
@@ -54,7 +54,7 @@ async def ocr(file: UploadFile = File(...)) -> OcrResponse:
 async def caption(file: UploadFile = File(...)) -> CaptionResponse:
     content = await file.read()
     media_type = file.content_type or "image/png"
-    return CaptionResponse(caption=await claude_vision.caption(content, media_type))
+    return CaptionResponse(caption=await llm_vision.caption(content, media_type))
 
 
 @router.post("/classify", response_model=ClassifyResponse)
@@ -65,18 +65,18 @@ async def classify(file: UploadFile = File(...), categories: str = Form(...)) ->
     cats = [c.strip() for c in categories.split(",") if c.strip()]
     if not cats:
         raise HTTPException(400, "Provide at least one category")
-    result = await claude_vision.classify(content, media_type, cats)
-    return ClassifyResponse(category=result, confidence_note="Zero-shot via Claude vision, not a calibrated softmax score.")
+    result = await llm_vision.classify(content, media_type, cats)
+    return ClassifyResponse(category=result, confidence_note="Zero-shot via the configured LLM's vision, not a calibrated softmax score.")
 
 
 @router.post("/detect-objects", response_model=DetectObjectsResponse)
 async def detect_objects(file: UploadFile = File(...)) -> DetectObjectsResponse:
-    """Object *enumeration* via Claude vision, not pixel-accurate bounding
-    boxes — real YOLO needs PyTorch, which this host's Smart App Control
-    policy blocks. See claude_vision.py for the full explanation."""
+    """Object *enumeration* via a vision-capable LLM, not pixel-accurate
+    bounding boxes — real YOLO needs PyTorch, which this host's Smart App
+    Control policy blocks. See llm_vision.py for the full explanation."""
     content = await file.read()
     media_type = file.content_type or "image/png"
-    objects, detail = await claude_vision.detect_objects(content, media_type)
+    objects, detail = await llm_vision.detect_objects(content, media_type)
     return DetectObjectsResponse(objects=objects, detail=detail)
 
 

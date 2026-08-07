@@ -15,8 +15,8 @@ A modular AI platform combining LLM chat, retrieval-augmented generation, comput
                                                │
                   ┌────────────────────────────┼────────────────────────────┐
                   ▼                            ▼                            ▼
-          Anthropic / OpenAI          ONNX Runtime (local)          Redis · Kafka · Ray
-          (chat, agents, LoRA)   (embeddings, OCR, ASR, vision)   (Celery, streaming, distributed)
+     AI Service Layer (pluggable)     ONNX Runtime (local)          Redis · Kafka · Ray
+   Anthropic/OpenAI/Gemini/Ollama  (embeddings, OCR, ASR, vision)   (Celery, streaming, distributed)
 ```
 
 Every module is a self-contained package under `backend/app/modules/<name>/` with its own request/response schemas, business logic, and router; `app/main.py` mounts each under `/api/<name>`. Cross-cutting concerns (authentication, rate limiting, audit logging, structured error handling) are implemented once as middleware and exception handlers, not per module.
@@ -25,7 +25,8 @@ Every module is a self-contained package under `backend/app/modules/<name>/` wit
 
 - JWT/OAuth2 authentication with role-based access control
 - Per-IP rate limiting and structured audit logging on every request
-- Streaming chat with tool use across two LLM providers
+- Provider-agnostic AI service layer — Anthropic, OpenAI, Gemini, or local Ollama models, selected by one environment variable
+- Streaming chat with tool use, with a per-conversation provider/model picker
 - Hybrid (BM25 + dense) retrieval with cross-encoder reranking for RAG
 - Local, GPU-free inference for embeddings, OCR, speech-to-text, and vision via ONNX Runtime
 - Background job tracking for long-running work (fine-tuning, image generation)
@@ -35,7 +36,7 @@ Every module is a self-contained package under `backend/app/modules/<name>/` wit
 
 | Module | Path prefix | Summary |
 |---|---|---|
-| Multi-LLM Chat | `/api/chat`, `/api/tokens` | Streaming chat across Anthropic and OpenAI, tool-use loop, token counting |
+| Multi-LLM Chat | `/api/chat`, `/api/tokens` | Streaming chat across Anthropic, OpenAI, Gemini, or Ollama (per-conversation picker), tool-use loop, token counting |
 | Enterprise RAG | `/api/rag` | Document ingestion (PDF/DOCX/PPTX/XLSX/images), hybrid search, cross-encoder reranking, cited Q&A |
 | Computer Vision | `/api/vision` | Face/edge detection (OpenCV), CLIP-based image search |
 | Speech AI | `/api/speech` | Text-to-speech and speech-to-text (Whisper via CTranslate2) |
@@ -54,7 +55,7 @@ Every module is a self-contained package under `backend/app/modules/<name>/` wit
 
 ## Technology Stack
 
-**Backend** — FastAPI, Pydantic v2, PyJWT, bcrypt, Anthropic SDK, OpenAI SDK, ONNX Runtime, `fastembed`, `faster-whisper`, `rapidocr-onnxruntime`, OpenCV, DuckDB, pandas, statsmodels, PyTorch + Transformers + PEFT + Diffusers, Ray, Celery, kafka-python, PySpark, MLflow, Playwright.
+**Backend** — FastAPI, Pydantic v2, PyJWT, bcrypt, ONNX Runtime, `fastembed`, `faster-whisper`, `rapidocr-onnxruntime`, OpenCV, DuckDB, pandas, statsmodels, PyTorch + Transformers + PEFT + Diffusers, Ray, Celery, kafka-python, PySpark, MLflow, Playwright. LLM access goes through a provider-agnostic AI service layer (`backend/app/providers/`) supporting Anthropic Claude, OpenAI, Google Gemini, and local models via Ollama — see backend/README.md's AI Service Layer section.
 
 **Frontend** — Next.js 15 (App Router), TypeScript (strict mode), Tailwind CSS. The landing page additionally uses Framer Motion, GSAP (ScrollTrigger), Three.js, Lenis (smooth scroll), and Lucide icons — see `frontend/README.md`'s Landing page section.
 
@@ -75,7 +76,7 @@ cd backend
 python -m venv .venv
 .venv\Scripts\activate            # Windows; use `source .venv/bin/activate` on macOS/Linux
 pip install -r requirements.txt
-copy .env.example .env            # then set ANTHROPIC_API_KEY / OPENAI_API_KEY
+copy .env.example .env            # then set AI_PROVIDER and that provider's API key
 uvicorn app.main:app --reload --port 8000
 
 # Frontend (separate terminal)
@@ -95,8 +96,12 @@ Backend configuration is managed by `app/config.py` (Pydantic Settings), loaded 
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `ANTHROPIC_API_KEY` | Yes, for Claude-backed modules | — | Anthropic API key |
-| `OPENAI_API_KEY` | Yes, for OpenAI-backed chat | — | OpenAI API key |
+| `AI_PROVIDER` | No | `anthropic` | Default LLM provider for every module except Chat (which picks one per conversation): `anthropic`, `openai`, `gemini`, or `ollama` |
+| `ANTHROPIC_API_KEY` | Yes, if using Anthropic | — | Anthropic API key |
+| `OPENAI_API_KEY` | Yes, if using OpenAI | — | OpenAI API key |
+| `GEMINI_API_KEY` | Yes, if using Gemini | — | Google Gemini API key |
+| `OLLAMA_BASE_URL` | No | `http://localhost:11434` | Local Ollama server address |
+| `OLLAMA_DEFAULT_MODEL` | No | `llama3.1` | Model to use via Ollama (must already be pulled) |
 | `CORS_ORIGINS` | No | `["http://localhost:3000"]` | Allowed CORS origins, JSON array |
 | `ENVIRONMENT` | No | `development` | `development` or `production`; controls error detail exposure |
 | `LOG_LEVEL` | No | `INFO` | Python logging level |

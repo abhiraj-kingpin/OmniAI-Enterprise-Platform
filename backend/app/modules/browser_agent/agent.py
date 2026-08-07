@@ -1,39 +1,30 @@
-"""Planning + Tool Calling: Claude decides which browser action to take
+"""Planning + Tool Calling: the model decides which browser action to take
 next, sees the result, and decides the next one — the same tool-use-loop
-shape as the chat and research-assistant modules, applied to a live browser
-instead of a fixed toolset or a search API.
+shape as the Chat and Research Assistant modules, applied to a live
+browser instead of a fixed toolset or a search API. Provider-agnostic via
+app/providers/factory.py.
 """
-
-from typing import Any
-
-import anthropic
 
 from app.modules.browser_agent.browser import BrowserSession
 from app.modules.browser_agent.schemas import AgentAction, RunResponse
+from app.providers.factory import get_provider
+from app.providers.types import AIMessage, ToolCall, ToolDefinition, ToolResult
 
 _TOOLS = [
-    {
-        "name": "navigate",
-        "description": "Go to a URL.",
-        "input_schema": {
-            "type": "object",
-            "properties": {"url": {"type": "string"}},
-            "required": ["url"],
-        },
-    },
-    {
-        "name": "click",
-        "description": "Click the first element matching a CSS selector.",
-        "input_schema": {
-            "type": "object",
-            "properties": {"selector": {"type": "string"}},
-            "required": ["selector"],
-        },
-    },
-    {
-        "name": "type_text",
-        "description": "Type text into an input matching a CSS selector, optionally pressing Enter.",
-        "input_schema": {
+    ToolDefinition(
+        name="navigate",
+        description="Go to a URL.",
+        input_schema={"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]},
+    ),
+    ToolDefinition(
+        name="click",
+        description="Click the first element matching a CSS selector.",
+        input_schema={"type": "object", "properties": {"selector": {"type": "string"}}, "required": ["selector"]},
+    ),
+    ToolDefinition(
+        name="type_text",
+        description="Type text into an input matching a CSS selector, optionally pressing Enter.",
+        input_schema={
             "type": "object",
             "properties": {
                 "selector": {"type": "string"},
@@ -42,29 +33,21 @@ _TOOLS = [
             },
             "required": ["selector", "text"],
         },
-    },
-    {
-        "name": "extract_text",
-        "description": (
+    ),
+    ToolDefinition(
+        name="extract_text",
+        description=(
             "Read the visible text of elements matching a CSS selector "
             "(default 'body' for the whole page). Use this to see what's on "
             "the page before deciding the next action."
         ),
-        "input_schema": {
-            "type": "object",
-            "properties": {"selector": {"type": "string"}},
-            "required": [],
-        },
-    },
-    {
-        "name": "finish",
-        "description": "Call this once the task is complete, with the final answer.",
-        "input_schema": {
-            "type": "object",
-            "properties": {"answer": {"type": "string"}},
-            "required": ["answer"],
-        },
-    },
+        input_schema={"type": "object", "properties": {"selector": {"type": "string"}}, "required": []},
+    ),
+    ToolDefinition(
+        name="finish",
+        description="Call this once the task is complete, with the final answer.",
+        input_schema={"type": "object", "properties": {"answer": {"type": "string"}}, "required": ["answer"]},
+    ),
 ]
 
 SYSTEM_PROMPT = (
@@ -78,82 +61,60 @@ SYSTEM_PROMPT = (
 
 
 async def run_agent(task: str, start_url: str | None, max_steps: int, headless: bool) -> RunResponse:
-    client = anthropic.AsyncAnthropic()
+    provider = get_provider()
     session = BrowserSession(headless=headless)
     await session.start()
 
     actions: list[AgentAction] = []
     initial_message = task if not start_url else f"{task}\n\n(Start at: {start_url})"
-    conversation: list[dict[str, Any]] = [{"role": "user", "content": initial_message}]
+    conversation: list[AIMessage] = [AIMessage(role="user", content=initial_message)]
 
     try:
         for _step in range(max_steps):
-            response = await client.messages.create(
-                model="claude-opus-5",
-                max_tokens=1024,
-                system=SYSTEM_PROMPT,
-                tools=_TOOLS,
-                messages=conversation,
+            response = await provider.complete(
+                messages=conversation, system=SYSTEM_PROMPT, max_tokens=1024, tools=_TOOLS
             )
-            conversation.append({"role": "assistant", "content": response.content})
+            conversation.append(AIMessage(role="assistant", content=response.text, tool_calls=response.tool_calls))
 
             if response.stop_reason != "tool_use":
-                text = next((b.text for b in response.content if b.type == "text"), "")
-                return RunResponse(task=task, answer=text, actions=actions, status="completed")
+                return RunResponse(task=task, answer=response.text, actions=actions, status="completed")
 
-            tool_results = []
+            tool_results: list[ToolResult] = []
             finished_answer = None
-            for block in response.content:
-                if block.type != "tool_use":
-                    continue
-
+            for call in response.tool_calls:
                 try:
-                    result = await _dispatch(session, block.name, block.input)
+                    result = await _dispatch(session, call)
                     is_error = False
                 except Exception as exc:
                     result = f"Error: {exc}"
                     is_error = True
 
-                actions.append(AgentAction(tool=block.name, input=block.input, result=result))
-                tool_results.append(
-                    {
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": result,
-                        "is_error": is_error,
-                    }
-                )
-                if block.name == "finish":
-                    finished_answer = block.input.get("answer", "")
+                actions.append(AgentAction(tool=call.name, input=call.input, result=result))
+                tool_results.append(ToolResult(tool_call_id=call.id, content=result, is_error=is_error))
+                if call.name == "finish":
+                    finished_answer = call.input.get("answer", "")
 
             if finished_answer is not None:
-                return RunResponse(
-                    task=task, answer=finished_answer, actions=actions, status="completed"
-                )
+                return RunResponse(task=task, answer=finished_answer, actions=actions, status="completed")
 
-            conversation.append({"role": "user", "content": tool_results})
+            conversation.append(AIMessage(role="user", content="", tool_results=tool_results))
 
         return RunResponse(
-            task=task,
-            answer="Reached the step limit before finishing.",
-            actions=actions,
-            status="max_steps_reached",
+            task=task, answer="Reached the step limit before finishing.", actions=actions, status="max_steps_reached"
         )
     finally:
         await session.close()
 
 
-async def _dispatch(session: BrowserSession, name: str, tool_input: dict[str, Any]) -> str:
-    if name == "navigate":
-        return await session.navigate(tool_input["url"])
-    if name == "click":
-        return await session.click(tool_input["selector"])
-    if name == "type_text":
-        return await session.type_text(
-            tool_input["selector"], tool_input["text"], tool_input.get("submit", False)
-        )
-    if name == "extract_text":
-        return await session.extract_text(tool_input.get("selector", "body"))
-    if name == "finish":
+async def _dispatch(session: BrowserSession, call: ToolCall) -> str:
+    if call.name == "navigate":
+        return await session.navigate(call.input["url"])
+    if call.name == "click":
+        return await session.click(call.input["selector"])
+    if call.name == "type_text":
+        return await session.type_text(call.input["selector"], call.input["text"], call.input.get("submit", False))
+    if call.name == "extract_text":
+        return await session.extract_text(call.input.get("selector", "body"))
+    if call.name == "finish":
         return "Task marked finished."
-    return f"Unknown tool: {name}"
+    return f"Unknown tool: {call.name}"

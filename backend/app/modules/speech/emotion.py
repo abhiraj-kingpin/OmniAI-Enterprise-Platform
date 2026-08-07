@@ -1,4 +1,4 @@
-"""Emotion Detection — from the transcript's language, via Claude, not from
+"""Emotion Detection — from the transcript's language, via an LLM, not from
 acoustic prosody (pitch/energy/tempo). A real prosodic emotion classifier is
 a trained model (again, PyTorch-based tooling); this is the honest
 alternative available without one: what the words themselves convey.
@@ -6,7 +6,8 @@ alternative available without one: what the words themselves convey.
 
 import json
 
-import anthropic
+from app.providers.factory import get_provider
+from app.providers.types import AIMessage
 
 _EMOTIONS = ["joy", "sadness", "anger", "fear", "surprise", "neutral"]
 
@@ -28,18 +29,15 @@ _SCHEMA = {
 
 
 async def analyze_emotion(transcript: str) -> dict:
-    client = anthropic.AsyncAnthropic()
-    response = await client.messages.create(
-        model="claude-opus-5",
-        max_tokens=512,
+    response = await get_provider().complete(
+        messages=[AIMessage(role="user", content=transcript)],
         system=(
             "Analyze the emotional tone of this speech transcript based on "
             "word choice, phrasing, and content. Score each emotion 0-1 "
             "(they don't need to sum to 1). Note in your reasoning that this "
             "is text-based, not acoustic (you can't hear tone of voice)."
         ),
-        messages=[{"role": "user", "content": transcript}],
-        output_config={"format": {"type": "json_schema", "schema": _SCHEMA}},
+        max_tokens=512,
+        response_schema=_SCHEMA,
     )
-    text_block = next(b.text for b in response.content if b.type == "text")
-    return json.loads(text_block)
+    return json.loads(response.text)

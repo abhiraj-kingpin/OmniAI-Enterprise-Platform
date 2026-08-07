@@ -1,8 +1,10 @@
-"""Example function-calling tools for the Anthropic provider.
+"""Example function-calling tools for the Multi-LLM Chat module.
 
 Two small, safe, side-effect-free tools to demonstrate the tool-use loop end
-to end. Add more tools here (and wire them into the tool-use loop in
-app/providers/anthropic_provider.py) as the platform grows.
+to end, provider-agnostic — every AIProvider implementation (Anthropic,
+OpenAI, Gemini, Ollama; see app/providers/) accepts this same
+ToolDefinition list and translates it to its own wire format. Add more
+tools here as the platform grows; nothing provider-specific belongs here.
 """
 
 import ast
@@ -11,14 +13,16 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-TOOL_DEFINITIONS: list[dict[str, Any]] = [
-    {
-        "name": "get_current_time",
-        "description": (
+from app.providers.types import ToolDefinition
+
+TOOL_DEFINITIONS: list[ToolDefinition] = [
+    ToolDefinition(
+        name="get_current_time",
+        description=(
             "Get the current date and time. Call this when the user asks "
             "what time or date it is right now."
         ),
-        "input_schema": {
+        input_schema={
             "type": "object",
             "properties": {
                 "timezone": {
@@ -31,11 +35,11 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             },
             "required": [],
         },
-    },
-    {
-        "name": "calculate",
-        "description": "Evaluate a basic arithmetic expression, e.g. '2 * (3 + 4)'.",
-        "input_schema": {
+    ),
+    ToolDefinition(
+        name="calculate",
+        description="Evaluate a basic arithmetic expression, e.g. '2 * (3 + 4)'.",
+        input_schema={
             "type": "object",
             "properties": {
                 "expression": {
@@ -45,7 +49,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             },
             "required": ["expression"],
         },
-    },
+    ),
 ]
 
 _BIN_OPS: dict[type, Any] = {
@@ -72,7 +76,7 @@ def _eval_node(node: ast.AST) -> float:
 def run_tool(name: str, tool_input: dict[str, Any]) -> str:
     """Execute a tool by name and return its result as a string.
 
-    Called from the tool-use loop after Claude emits a `tool_use` block; the
+    Called from the tool-use loop after the model emits a tool call; the
     return value is sent back as the `tool_result` content.
     """
     if name == "get_current_time":

@@ -1,6 +1,5 @@
 import uuid
 
-import anthropic
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from app.modules.rag.chunking import chunk_text
@@ -15,6 +14,8 @@ from app.modules.rag.schemas import (
     UploadResponse,
 )
 from app.modules.rag.store import get_collection, list_collections
+from app.providers.factory import get_provider
+from app.providers.types import AIMessage
 
 router = APIRouter()
 
@@ -71,23 +72,16 @@ async def query(req: QueryRequest) -> QueryResponse:
         context = "\n\n---\n\n".join(
             f"[Source: {r.chunk.source}]\n{r.chunk.text}" for r in retrieved
         )
-        client = anthropic.AsyncAnthropic()
-        response = await client.messages.create(
-            model="claude-opus-5",
-            max_tokens=1024,
+        response = await get_provider().complete(
+            messages=[AIMessage(role="user", content=f"Context:\n{context}\n\nQuestion: {req.query}")],
             system=(
                 "Answer the user's question using only the provided context. "
                 "Cite sources by name inline. If the context doesn't contain "
                 "the answer, say so plainly instead of guessing."
             ),
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"Context:\n{context}\n\nQuestion: {req.query}",
-                }
-            ],
+            max_tokens=1024,
         )
-        answer = next(b.text for b in response.content if b.type == "text")
+        answer = response.text
     elif req.answer:
         answer = "No documents in this collection matched the query."
 

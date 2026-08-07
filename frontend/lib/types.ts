@@ -12,7 +12,7 @@ export interface ChatMessage {
   content: string;
 }
 
-export type Provider = "anthropic" | "openai";
+export type Provider = "anthropic" | "openai" | "gemini" | "ollama";
 
 export interface StreamChunk {
   type: "text" | "tool_use" | "tool_result" | "usage" | "done" | "error";

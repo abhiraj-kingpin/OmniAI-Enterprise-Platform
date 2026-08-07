@@ -1,11 +1,12 @@
-"""Statistics computation (pandas) + narrative generation (Claude)."""
+"""Statistics computation (pandas) + narrative generation (LLM)."""
 
 import json
 
-import anthropic
 import pandas as pd
 
 from app.modules.data_analyst.schemas import InsightsResponse
+from app.providers.factory import get_provider
+from app.providers.types import AIMessage
 
 
 def _clean(value: float) -> float | None:
@@ -50,19 +51,17 @@ async def generate_narrative(
         "sample_rows": df.head(5).to_dict(orient="records"),
     }
 
-    client = anthropic.AsyncAnthropic()
-    response = await client.messages.create(
-        model="claude-opus-5",
-        max_tokens=1024,
+    response = await get_provider().complete(
+        messages=[AIMessage(role="user", content=json.dumps(summary, default=str))],
         system=(
             "You are a data analyst. Given dataset statistics, write a short, "
             "concrete narrative: what stands out, notable distributions or "
             "outliers, any strong correlations, and data-quality issues "
             "(missing values). Plain prose, no headers, 4-8 sentences."
         ),
-        messages=[{"role": "user", "content": json.dumps(summary, default=str)}],
+        max_tokens=1024,
     )
-    return next(b.text for b in response.content if b.type == "text")
+    return response.text
 
 
 async def build_insights(dataset_id: str, df: pd.DataFrame) -> InsightsResponse:
